@@ -10,6 +10,6 @@ CUTOFF_FREQUENCY = 100
 loader = jsonloader.Jsonloader(MINIMUM_KARMA)
 data = dataprepper.DataPrepper(loader.data, CUTOFF_FREQUENCY)
 
-model = jokemodel.JokeModel(data)
+model = jokemodel.TemplateModel(data)
 
 
