@@ -1,27 +1,24 @@
-import jsonloader
-import string
 
-#The frequency where a word is considered a content word
-CUTOFF_FREQUENCY = 100
-
-class ContentWords:
-    def __init__(self, minimum_karma=5):
-        loader = jsonloader.Jsonloader(minimum_karma)
-        print(len(loader.data))
+class DataPrepper:
+    def __init__(self, data, cutoff):
         self.index = 0
-        self.createBOW(loader.data)
-        print(self.contentBOW)
-        print(self.fillerBOW)
+        self.allData = self.cleanup(data)
+        self.createBOW(cutoff)
+        self.prepareData()
 
-    def createBOW(self, data):
+    def createBOW(self, cutoff):
         words = {}
-        for line in data:
-            title = self.cleanup(line["title"])
-            body = self.cleanup(line["body"])
-            self.countwords(words, title)
-            self.countwords(words, body)
-        self.contentBOW = {word: words[word] for word in words if words[word]["count"] >= CUTOFF_FREQUENCY}
-        self.fillerBOW = {word: words[word] for word in words if words[word]["count"] < CUTOFF_FREQUENCY}
+        for joke in self.allData:
+            self.countwords(words, joke["openingLine"])
+            self.countwords(words, joke["punchline"])
+        self.contentBOW = {word: words[word] for word in words if words[word]["count"] < cutoff}
+        self.fillerBOW = {word: words[word] for word in words if words[word]["count"] >= cutoff}
+
+    def prepareData(self):
+        self.data = {}
+            print(len(self.allData))
+        self.data["train"] = self.allData[1:20000]
+        self.data["test"] = self.allData[20001:]
 
     def countwords(self, words, line):
         for word in line:
@@ -33,16 +30,26 @@ class ContentWords:
                 words[word]["id"] = self.index
                 self.index += 1
 
-    def cleanup(self, line):
-        words = line.split()
+    def cleanup(self, data):
+        cleanedData = []
+        for joke in data:
+            cleanedJoke = {}
+            cleanedJoke["openingLine"] = self.clean(joke["title"])
+            cleanedJoke["punchline"] = self.clean(joke["body"])
+            cleanedJoke["score"] = joke["score"]
+            cleanedData.append(cleanedJoke)
+        return cleanedData
+
+    def clean(self, joke):
+        words = joke.split()
         words = self.punctuate(words, "?")
         words = self.punctuate(words, "!")
         words = self.punctuate(words, ".")
         words = self.punctuate(words, ",")
         # only lowercase first word of sentence?
         words = list(map(lambda x: x.lower(), words))
-        #words = map(lambda x: ''.join(ch for ch in x if ch not in set([",", "."])), words)
         return words
+
 
     def punctuate(self, words, punctuation):
         punctuationword = None
@@ -57,7 +64,4 @@ class ContentWords:
             words.append(newword)
             words.append(punctuation)
         return words
-
-
-contentwords = ContentWords(1)
 
