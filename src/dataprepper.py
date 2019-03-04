@@ -1,24 +1,45 @@
-
 class DataPrepper:
     def __init__(self, data, cutoff):
         self.index = 0
+        self.cutoff = cutoff
         self.allData = self.cleanup(data)
-        self.createBOW(cutoff)
-        self.prepareData()
+        self.createBOW()
+        self.tokenizeData()
+        self.separateData()
 
-    def createBOW(self, cutoff):
+    def createBOW(self):
         words = {}
         for joke in self.allData:
             self.countwords(words, joke["openingLine"])
             self.countwords(words, joke["punchline"])
-        self.contentBOW = {word: words[word] for word in words if words[word]["count"] < cutoff}
-        self.fillerBOW = {word: words[word] for word in words if words[word]["count"] >= cutoff}
+            self.cw_token = self.index + 1
+        self.allBOW = words
+        self.contentBOW = {word: words[word] for word in words if words[word]["count"] < self.cutoff}
+        self.fillerBOW = {word: words[word] for word in words if words[word]["count"] >= self.cutoff}
 
-    def prepareData(self):
-        self.data = {}
-            print(len(self.allData))
-        self.data["train"] = self.allData[1:20000]
-        self.data["test"] = self.allData[20001:]
+    def separateData(self):
+        self.dataset = {}
+        self.dataset["train"] = self.allData[1:20000]
+        self.dataset["test"] = self.allData[20001:]
+
+    def tokenizeData(self):
+        data = self.allData
+        tokenizedData = []
+        for joke in data:
+            tokenizedJoke = {}
+            openingLine, contentwords = self.separateContentWords(joke["openingLine"])
+            tokenizedJoke["openingLine"] = openingLine
+            tokenizedJoke["openingLineCWs"] = contentwords
+            tokenizedJoke["t_openingLine"] = map(lambda x: self.getIndex(x), openingLine)
+            tokenizedJoke["t_openingLineCWs"] = map(lambda x: self.getIndex(x), contentwords)
+            punchline, contentwords = self.separateContentWords(joke["punchline"])
+            tokenizedJoke["punchline"] = punchline
+            tokenizedJoke["punchlineCWs"] = contentwords
+            tokenizedJoke["t_punchline"] = map(lambda x: self.getIndex(x), punchline)
+            tokenizedJoke["t_punchlineCWs"] = map(lambda x: self.getIndex(x), contentwords)
+            tokenizedJoke["score"] = joke["score"]
+            tokenizedData.append(tokenizedJoke)
+        self.allData = tokenizedData
 
     def countwords(self, words, line):
         for word in line:
@@ -64,4 +85,21 @@ class DataPrepper:
             words.append(newword)
             words.append(punctuation)
         return words
+
+    def separateContentWords(self, line):
+        templatedLine = []
+        contentWords = []
+        for word in line:
+            if self.allBOW[word]["count"] > self.cutoff:
+                templatedLine.append(word)
+            else:
+                templatedLine.append("CONTENTWORD")
+                contentWords.append(word)
+        return templatedLine, contentWords
+
+    def getIndex(self, word):
+        if word == "CONTENTWORD":
+            return self.cw_token
+        return self.allBOW[word]["id"]
+
 
