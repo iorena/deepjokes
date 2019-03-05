@@ -1,12 +1,16 @@
+import operator
+
 class DataPrepper:
     def __init__(self, data, cutoff):
-        self.index = 0
+        self.eos_token = 0
+        self.cw_token = 1
+        self.sos_token = 2
+        self.index = 3
         self.opening_line_length = 0
         self.punchline_length = 0
         self.cutoff = cutoff
         self.allData = self.cleanup(data)
         self.createBOW()
-        self.padLines()
         self.tokenizeData()
         self.separateData()
 
@@ -19,43 +23,29 @@ class DataPrepper:
                 self.opening_line_length = len(joke["openingLine"])
             if len(joke["punchline"]) > self.punchline_length:
                 self.punchline_length = len(joke["punchline"])
-            self.cw_token = self.index + 1
-            self.empty_token = self.index + 2
+        sortedWords = sorted(words.items(), key=operator.itemgetter(1), reverse=True)
+        self.fillerBOW = ["EOS", "CONTENTWORD", "SOS"]
+        for i in range(len(sortedWords)):
+            if sortedWords[i][1] >= self.cutoff:
+                self.fillerBOW.append(sortedWords[i][0])
+            else:
+                self.contentBOW = [word[0] for word in sortedWords[i:]]
+                break
         self.allBOW = words
-        self.contentBOW = {word: words[word] for word in words if self.getCount(word) < self.cutoff}
-        self.fillerBOW = {word: words[word] for word in words if self.getCount(word) >= self.cutoff}
-
-    def separateData(self):
-        self.dataset = {}
-        self.dataset["train"] = self.allData[1:20000]
-        self.dataset["test"] = self.allData[20001:]
-
-    def padLines(self):
-        for joke in self.allData:
-            paddedopening = joke["openingLine"]
-            while len(paddedopening) < self.opening_line_length:
-                paddedopening.append("EMPTY")
-            paddedpunchline = joke["punchline"]
-            while len(paddedpunchline) < self.opening_line_length:
-                paddedpunchline.append("EMPTY")
-            joke["openingLine"] = paddedopening
-            joke["punchline"] = paddedpunchline
 
     def tokenizeData(self):
         data = self.allData
         tokenizedData = []
         for joke in data:
             tokenizedJoke = {}
-            openingLine, contentwords = self.separateContentWords(joke["openingLine"])
-            tokenizedJoke["openingLine"] = openingLine
-            tokenizedJoke["openingLineCWs"] = contentwords
-            tokenizedJoke["t_openingLine"] = list(map(lambda x: self.getIndex(x), openingLine))
-            tokenizedJoke["t_openingLineCWs"] = list(map(lambda x: self.getIndex(x), contentwords))
-            punchline, contentwords = self.separateContentWords(joke["punchline"])
-            tokenizedJoke["punchline"] = punchline
-            tokenizedJoke["punchlineCWs"] = contentwords
-            tokenizedJoke["t_punchline"] = list(map(lambda x: self.getIndex(x), punchline))
-            tokenizedJoke["t_punchlineCWs"] = list(map(lambda x: self.getIndex(x), contentwords))
+            tokenizedJoke["openingLine"] = joke["openingLine"]
+            tokenizedOpeningLine = list(map(lambda x: self.getToken(x), joke["openingLine"]))
+            tokenizedJoke["t_openingLine"], tokenizedJoke["t_openingLineCWs"] = self.separateContentWords(tokenizedOpeningLine)
+            tokenizedJoke["punchline"] = joke["punchline"]
+            tokenizedPunchline = list(map(lambda x: self.getToken(x), joke["punchline"]))
+            tokenizedJoke["t_punchline"], tokenizedJoke["t_punchlineCWs"] = self.separateContentWords(tokenizedPunchline)
+            if len(tokenizedJoke["t_punchline"]) == 0:
+                print(joke)
             tokenizedJoke["score"] = joke["score"]
             tokenizedData.append(tokenizedJoke)
         self.allData = tokenizedData
@@ -66,17 +56,17 @@ class DataPrepper:
             if len(word) > max_length:
                 max_length = len(word)
             if word in words:
-                words[word]["count"] = words[word]["count"] + 1
+                words[word] = words[word] + 1
             else:
-                words[word] = {}
-                words[word]["count"] = 1
-                words[word]["id"] = self.index
-                self.index += 1
+                words[word] = 1
         return max_length
 
     def cleanup(self, data):
         cleanedData = []
+        #Filter out jokes with empty punchline
         for joke in data:
+            if len(joke["body"].replace(" ", "")) == 0:
+                continue
             cleanedJoke = {}
             cleanedJoke["openingLine"] = self.clean(joke["title"])
             cleanedJoke["punchline"] = self.clean(joke["body"])
@@ -113,22 +103,25 @@ class DataPrepper:
     def separateContentWords(self, line):
         templatedLine = []
         contentWords = []
-        for word in line:
-            if self.getCount(word) > self.cutoff:
-                templatedLine.append(word)
+        for token in line:
+            if token < len(self.fillerBOW):
+                templatedLine.append(token)
             else:
-                templatedLine.append("CONTENTWORD")
-                contentWords.append(word)
+                templatedLine.append(self.cw_token)
+                contentWords.append(token)
         return templatedLine, contentWords
 
-    def getIndex(self, word):
-        if word == "CONTENTWORD":
-            return self.cw_token
-        if word == "EMPTY":
-            return self.empty_token
-        return self.allBOW[word]["id"]
+    def getToken(self, word):
+        if word in self.fillerBOW:
+            return self.fillerBOW.index(word)
+        return len(self.fillerBOW) + self.contentBOW.index(word) + 1
 
     def getCount(self, word):
         if word == "EMPTY":
             return 9001
         return self.allBOW[word]["count"]
+
+    def separateData(self):
+        self.dataset = {}
+        self.dataset["train"] = self.allData[1:20000]
+        self.dataset["test"] = self.allData[20001:]
