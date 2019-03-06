@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import random
+import os
 
 class EncoderModel(nn.Module):
     def __init__(self, filler_set_size, hidden_dim):
@@ -61,6 +62,10 @@ class Trainer:
         filler_set_size = len(data.fillerBOW) + 1
         self.encoder = EncoderModel(filler_set_size, HIDDEN_DIM)
         self.decoder = DecoderModel(HIDDEN_DIM, filler_set_size)
+        if os.path.isfile("encoderstate"):
+            self.encoder.load_state_dict(torch.load("encoderstate"))
+        if os.path.isfile("decoderstate"):
+            self.decoder.load_state_dict(torch.load("decoderstate"))
         self.learning_rate = LEARNING_RATE
         self.loss_function = nn.NLLLoss()
         self.encoder_optim = optim.SGD(self.encoder.parameters(), lr=self.learning_rate)
@@ -82,6 +87,8 @@ class Trainer:
             opening_line, punchline = self.evaluate()
             print("Opening line:", opening_line)
             print("Punchline:", punchline)
+            torch.save(self.encoder.state_dict(), "encoderstate")
+            torch.save(self.decoder.state_dict(), "decoderstate")
 
     def evaluate(self):
         testset = self.data.dataset["test"]
@@ -99,7 +106,7 @@ class Trainer:
         decoded_words = []
 
         for i in range(self.data.punchline_length):
-            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, encoder_outputs)
+            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.data.topk(1)
             if topi.item() == self.data.eos_token:
                 decoded_words.append("EMPTY")
