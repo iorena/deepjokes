@@ -46,6 +46,13 @@ class DataPrepper:
             tokenizedJoke["t_punchline"], tokenizedJoke["t_punchlineCWs"] = self.separateContentWords(tokenizedPunchline)
             if len(tokenizedJoke["t_punchline"]) == 0:
                 print(joke)
+
+            #add EOS tokens
+            tokenizedJoke["t_openingLine"].append(self.eos_token)
+            tokenizedJoke["t_punchline"].append(self.eos_token)
+            tokenizedJoke["t_openingLineCWs"].append(self.eos_token)
+            tokenizedJoke["t_punchlineCWs"].append(self.eos_token)
+
             tokenizedJoke["score"] = joke["score"]
             tokenizedData.append(tokenizedJoke)
         self.allData = tokenizedData
@@ -76,12 +83,11 @@ class DataPrepper:
 
     def clean(self, joke):
         words = joke.split()
-        #todo: separate 's?
         words = self.punctuate(words, "?")
         words = self.punctuate(words, "!")
         words = self.punctuate(words, ".")
         words = self.punctuate(words, ",")
-        # only lowercase first word of sentence?
+        words = self.punctuate(words, "'s")
         words = list(map(lambda x: x.lower(), words))
         return words
 
