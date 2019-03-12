@@ -56,10 +56,10 @@ class ContentWordsTrainer():
                     input_seq = torch.cat((input_seq, predicted.view(-1, 1)), 0)
                     total_loss += loss
 
-            print("Total loss:", total_loss)
+            print("Total loss:", total_loss.item())
             opening_line, punchline = self.evaluate()
-            print("Opening line:", opening_line)
-            print("Punchline:", punchline)
+            print("Opening line:", " ".join(opening_line))
+            print("Punchline:", " ".join(punchline))
             torch.save(self.model.state_dict(), "lstmstate")
 
 
@@ -77,12 +77,18 @@ class ContentWordsTrainer():
         testset = self.data.dataset["test"]
         rand_i = random.randint(0, len(testset))
         opening_line = torch.tensor(testset[rand_i]["t_openingLine"])
-        opening_cws = torch(tensor(testset[rand_i]["t_openingLineCWs"]))
-        input_seq = torch.cat((opening_line, opening_cws), 0)
+        opening_cws = torch.tensor(testset[rand_i]["t_openingLineCWs"])
+        input_seq = torch.cat((opening_line, opening_cws), 0).view(-1, 1)
         predicted_punchline = testset[rand_i]["punchline"]
+        predictedCWs = []
         for i in range(len(testset[rand_i]["t_punchlineCWs"])):
             probs = self.model(input_seq)
             _, predicted = torch.max(probs, 1)
             input_seq = torch.cat((input_seq, predicted.view(-1, 1)), 0)
-            predicted_punchline = predicted_punchline.replace("CONTENTWORD", predicted.item())
+            predictedCWs.append(predicted.item())
+        i = 0
+        for index, word in enumerate(predicted_punchline):
+            if word == "CONTENTWORD":
+                predicted_punchline[index] = predicted[i]
+                i += 1
         return testset[rand_i]["openingLine"], predicted_punchline
