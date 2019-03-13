@@ -79,16 +79,24 @@ class ContentWordsTrainer():
         opening_line = torch.tensor(testset[rand_i]["t_openingLine"])
         opening_cws = torch.tensor(testset[rand_i]["t_openingLineCWs"])
         input_seq = torch.cat((opening_line, opening_cws), 0).view(-1, 1)
-        predicted_punchline = testset[rand_i]["punchline"]
+        predicted_punchline = testset[rand_i]["t_punchline"]
         predictedCWs = []
         for i in range(len(testset[rand_i]["t_punchlineCWs"])):
             probs = self.model(input_seq)
             _, predicted = torch.max(probs, 1)
+            print(input_seq, predicted)
             input_seq = torch.cat((input_seq, predicted.view(-1, 1)), 0)
             predictedCWs.append(predicted.item())
         i = 0
-        for index, word in enumerate(predicted_punchline):
-            if word == "CONTENTWORD":
-                predicted_punchline[index] = predicted[i]
+        sentence = []
+        print(testset[rand_i]["openingLine"], testset[rand_i]["punchline"])
+        for index, token in enumerate(predicted_punchline):
+            if token == self.data.cw_token:
+                contentword = self.data.contentBOW[predictedCWs[i] - 1 - len(self.data.fillerBOW)]
+                print("contentword ", contentword)
+                sentence.append(contentword)
                 i += 1
-        return testset[rand_i]["openingLine"], predicted_punchline
+            else:
+                sentence.append(self.data.fillerBOW[token])
+        print(sentence)
+        return testset[rand_i]["openingLine"], sentence

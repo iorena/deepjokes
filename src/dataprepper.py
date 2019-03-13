@@ -92,19 +92,16 @@ class DataPrepper:
         return words
 
 
-    def punctuate(self, words, punctuation):
-        punctuationword = None
-        for word in words:
+    def punctuate(self, sentence, punctuation):
+        newsentence = []
+        for word in sentence:
             if punctuation in word:
-                punctuationword = word
+                newword = word.replace(punctuation, "")
+                newsentence.append(newword)
+                newsentence.append(punctuation)
             else:
-                punctuationword = None
-        if punctuationword is not None:
-            words.remove(punctuationword)
-            newword = ''.join(ch for ch in punctuationword if ch is not punctuation)
-            words.append(newword)
-            words.append(punctuation)
-        return words
+                newsentence.append(word)
+        return newsentence
 
     def separateContentWords(self, line):
         templatedLine = []
@@ -129,5 +126,5 @@ class DataPrepper:
 
     def separateData(self):
         self.dataset = {}
-        self.dataset["train"] = self.allData[1:20000]
+        self.dataset["train"] = self.allData[1:8000]
         self.dataset["test"] = self.allData[20001:]
