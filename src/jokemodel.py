@@ -53,8 +53,9 @@ class Trainer:
                 total_loss += loss
             print("Total loss:", total_loss)
             opening_line, punchline = self.evaluate()
-            print("Opening line:", opening_line)
-            print("Punchline:", punchline)
+            print("Opening line:", " ".join([self.data.allBOW[token] for token in opening_line]))
+            punchline_words = " ".join([self.data.fillerBOW[token] for token in punchline])
+            print("Punchline:", punchline_words)
             torch.save(self.encoder.state_dict(), "encoderstate")
             torch.save(self.decoder.state_dict(), "decoderstate")
 
@@ -71,19 +72,19 @@ class Trainer:
             encoder_outputs[i] = encoder_out[0, 0]
         decoder_input = torch.tensor([[self.data.sos_token]])
         decoder_hidden = encoder_hidden
-        decoded_words = []
+        decoded_tokens = []
 
         for i in range(self.data.punchline_length):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.data.topk(1)
             if topi.item() == self.data.eos_token:
-                decoded_words.append("EMPTY")
+                decoded_tokens.append(self.data.eos_token)
                 break
             else:
-                decoded_words.append(self.data.fillerBOW[topi.item()])
+                decoded_tokens.append(topi.item())
 
             decoder_input = topi.squeeze().detach()
-        return testset[rand_i]["openingLine"], " ".join(decoded_words)
+        return testset[rand_i]["t_openingLine"] + testset[rand_i]["t_openingLineCWs"], decoded_tokens
 
 
     def trainSequence(self, input_seq, target_seq):
@@ -116,4 +117,6 @@ class Trainer:
 
         return loss.item() / target_seq.size(0) #should probably get length of non-empty tokens
 
-
+    def predict(self, setup=None):
+        if setup is None:
+            return self.evaluate()

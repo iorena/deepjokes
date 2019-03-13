@@ -11,9 +11,15 @@ CUTOFF_FREQUENCY = 100
 loader = jsonloader.Jsonloader(MINIMUM_KARMA)
 data = dataprepper.DataPrepper(loader.data, CUTOFF_FREQUENCY)
 
-trainer = jokemodel.Trainer(data)
-#trainer.train()
+templatetrainer = jokemodel.Trainer(data)
+templatetrainer.train()
 
 cwtrainer = contentwords.ContentWordsTrainer(data)
 cwtrainer.train()
+
+opening, template = templatetrainer.predict()
+print(cwtrainer.predict(opening, template))
+
+
+
 

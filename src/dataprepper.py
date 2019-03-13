@@ -31,7 +31,7 @@ class DataPrepper:
             else:
                 self.contentBOW = [word[0] for word in sortedWords[i:]]
                 break
-        self.allBOW = words
+        self.allBOW = self.fillerBOW + ["EMPTY"] + self.contentBOW
 
     def tokenizeData(self):
         data = self.allData
@@ -88,6 +88,10 @@ class DataPrepper:
         words = self.punctuate(words, ".")
         words = self.punctuate(words, ",")
         words = self.punctuate(words, "'s")
+        words = self.punctuate(words, "(")
+        words = self.punctuate(words, ")")
+        words = self.punctuate(words, '"')
+        words = self.punctuate(words, '"')
         words = list(map(lambda x: x.lower(), words))
         return words
 

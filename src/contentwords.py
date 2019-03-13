@@ -84,19 +84,49 @@ class ContentWordsTrainer():
         for i in range(len(testset[rand_i]["t_punchlineCWs"])):
             probs = self.model(input_seq)
             _, predicted = torch.max(probs, 1)
-            print(input_seq, predicted)
             input_seq = torch.cat((input_seq, predicted.view(-1, 1)), 0)
             predictedCWs.append(predicted.item())
         i = 0
         sentence = []
-        print(testset[rand_i]["openingLine"], testset[rand_i]["punchline"])
         for index, token in enumerate(predicted_punchline):
             if token == self.data.cw_token:
                 contentword = self.data.contentBOW[predictedCWs[i] - 1 - len(self.data.fillerBOW)]
-                print("contentword ", contentword)
                 sentence.append(contentword)
                 i += 1
             else:
                 sentence.append(self.data.fillerBOW[token])
-        print(sentence)
         return testset[rand_i]["openingLine"], sentence
+
+    def predict(self, opening, punchline):
+        punchline_cws = 0
+        for token in punchline:
+            if token == self.data.cw_token:
+                punchline_cws += 1
+        input_seq = torch.tensor(opening).view(-1, 1)
+        predictedCWs = []
+        for i in range(punchline_cws):
+            probs = self.model(input_seq)
+            _, predicted = torch.max(probs, 1)
+            input_seq = torch.cat((input_seq, predicted.view(-1, 1)), 0)
+            predictedCWs.append(predicted.item())
+        predicted_punchline = []
+        i = 0
+        for index, token in enumerate(punchline):
+            if token == self.data.cw_token:
+                predicted_punchline.append(self.data.contentBOW[predictedCWs[i] - 1 - len(self.data.fillerBOW)])
+                i += 1
+            else:
+                predicted_punchline.append(self.data.fillerBOW[token])
+        opening_formatted = []
+        split = opening.index(self.data.eos_token)
+        opening_template = opening[:split]
+        opening_cws = opening[split+1:]
+        i = 0
+        for token in opening_template:
+            if token == self.data.cw_token:
+                opening_formatted.append(opening_cws[i])
+                i += 1
+            else:
+                opening_formatted.append(token)
+        return " ".join([self.data.allBOW[token] for token in opening_formatted]), " ".join(predicted_punchline)
+
